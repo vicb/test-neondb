@@ -1,0 +1,41 @@
+name: test
+services:
+  postgres:
+    container_name: test-pg
+    image: postgres:17
+    restart: unless-stopped
+    ports:
+      - 5442:5432
+    environment:
+      POSTGRES_USER: testdb
+      POSTGRES_PASSWORD: testdb
+      POSTGRES_DB: testdb
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - ./dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro
+      - type: tmpfs
+        target: /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h postgres -U testdb -d testdb"]
+      interval: 5s
+      timeout: 1s
+      retries: 3
+
+  pg_proxy:
+    container_name: test-pg_proxy
+    image: ghcr.io/neondatabase/wsproxy:latest
+    restart: unless-stopped
+    environment:
+      APPEND_PORT: postgres:5432
+      ALLOW_ADDR_REGEX: ".*"
+      LOG_TRAFFIC: true
+      LOG_CONN_INFO: true
+    ports:
+      - 5443:80
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 5s
+      timeout: 1s
+      retries: 3
